@@ -4,6 +4,7 @@ use crate::{Machine, State, STATE_VARIANTS};
 use num_enum::FromPrimitive;
 
 pub fn build_unboxed_handlers() -> Vec<Vec<Func<fn(&mut Machine) -> Option<State>>>> {
+    #[allow(non_upper_case_globals)]
     const table_size: usize = STATE_VARIANTS;
     let mut fn_table: Vec<Vec<Func<_>>> = Vec::new();
     for _ in 0..table_size {
@@ -14,22 +15,9 @@ pub fn build_unboxed_handlers() -> Vec<Vec<Func<fn(&mut Machine) -> Option<State
         fn_table.push(funcs);
     }
 
-    build_mappings(&mut fn_table);
     fn_table
 }
 
-fn build_mappings(fn_table: &mut Vec<Vec<Func<fn(&mut Machine) -> Option<State>>>>) {
-    fn_table[State::Initial as usize][State::SKIP8 as usize] = Func::FuncBoxed(Rc::new(|m| {
-        println!("[initial] -> [skip8]!");
-        m.counter+=1;
-        if m.counter >= 8 {
-            m.counter = 0;
-            return Some((m.state as u8 + 2).into());
-        }
-        println!("counter is {}", m.counter);
-        None
-    }));
-}
 
 pub trait Callable {
     fn apply(&self, ctx: &mut Machine) -> Option<State>;
@@ -58,27 +46,14 @@ where
         match self {
             Func::Unit(u) => u.apply(ctx),
             Func::Fun(f) => f.apply(ctx),
-            Func::FuncPtr(f) => f.apply(ctx),
-            Func::FuncBoxed(bf) => bf.apply(ctx),
         }
     }
 }
 
-#[derive(Clone)]
+#[derive(Copy, Clone)]
 pub enum Func<T: Fn(&mut Machine) -> Option<State>> {
     Unit(()),
     Fun(T),
-    FuncPtr(fn(&mut Machine) -> Option<State>),
-    FuncBoxed(Rc<dyn Fn(&mut Machine) -> Option<State>>),
-}
-
-impl<T> Func<T>
-where
-    T: Fn(&mut Machine) -> Option<State>,
-{
-    pub fn boxed(input: impl Fn(&mut Machine) -> Option<State> + 'static) -> Func<T> {
-        Func::FuncBoxed(Rc::new(input))
-    }
 }
 
 impl std::fmt::Debug for Func<fn(&mut Machine) -> Option<State>> {
@@ -87,8 +62,6 @@ impl std::fmt::Debug for Func<fn(&mut Machine) -> Option<State>> {
         match self {
             Unit(_) => write!(f, "{}", "unit"),
             Fun(_) => write!(f, "{}", "func"),
-            FuncPtr(_) => write!(f, "{}", "func_pointer"),
-            FuncBoxed(_) => write!(f, "{}", "func_boxed"),
         }
     }
 }

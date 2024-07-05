@@ -42,33 +42,28 @@ impl Machine {
     pub fn parse(&mut self, c: u8) {
         let current_state = self.state;
         self.byte = c;
-        //println!("current state is {:?}", self.state);
+
         let proposed_state = self.state_machine[current_state as usize * 256 + c as usize];
         let new_state = self
             .run_funcs(current_state, proposed_state.into())
-            .unwrap_or_else(|| {
-                println!("run funcs false for {:?} to {:?}", current_state, State::from_primitive(proposed_state));
-                current_state
-            });
-        //println!("newstate is {new_state:?}");
+            .unwrap_or_else(|| current_state);
+
         self.state = new_state.into();
         self.prev = current_state;
     }
 
-    pub fn run_funcs(&mut self, current: State, new: State) -> Option<State> {
-        let res = self.func_table[current as usize].clone();
-        let func = res[new as usize].clone();
+    pub fn run_funcs(&mut self, current: State, new_state: State) -> Option<State> {
+        let func = self.func_table[current as usize][new_state as usize];
         let res = func.apply(self);
         res
     }
-
 }
 
 impl Machine {
     pub fn map_func(&mut self, mapper: FuncMap, func: Func<fn(&mut Machine) -> Option<State>>) {
         let FuncMap(from_iter, to) = mapper;
         for from in from_iter {
-            self.func_table[from as usize][to as usize] = func.clone();
+            self.func_table[from as usize][to as usize] = func;
         }
     }
 
@@ -121,6 +116,7 @@ enum_builder! (
         BUFSIZE4,
     }
 );
+
 const STATE_VARIANTS: usize = State::attr_count();
 
 // potentially we could have another machine that tracks the count for each state and increments
