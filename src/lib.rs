@@ -1,3 +1,5 @@
+#[macro_use]
+pub mod macros;
 pub mod error;
 pub mod function;
 
@@ -15,13 +17,13 @@ pub struct Machine {
     state_machine: Vec<u8>,
     func_table: FuncResult,
     counter: u32,
-    be_int: u32,
+    pub be_int: u32,
 }
 
 impl Machine {
     pub fn new() -> Self {
         Self {
-            state: State::Initial,
+            state: State::from_primitive(1),
             prev: State::Initial,
             stack: Vec::new(),
             state_machine: make_state(),
@@ -98,6 +100,7 @@ impl Machine {
 
     pub fn reset_count(&mut self) {
         self.counter = 0;
+        self.be_int = 0;
     }
 
     pub fn current_count(&self) -> u32 {
@@ -109,70 +112,26 @@ impl Machine {
         self.counter
     }
 }
-macro_rules! enum_builder {
-    //($(#[$comment:meta])* $($enum:tt)+) => {
-    //    enum_builder!($(#[$comment])* $($enum)+);
-    //};
-
-    ($(#[$comment:meta])* $enum_vis:vis enum $enum_name:ident { $( $(#[$met:meta])? $name:ident $(= $exp:expr)?, )*}  ) => {
-
-        #[derive(Default, Copy, Clone, Debug, PartialEq, FromPrimitive)]
-        #[repr(u8)]
-        $enum_vis enum $enum_name {
-            $( $name ),*
-            ,#[default]
-            Unknown = 0xFF
-        }
-
-        impl $enum_name {
-            const fn attr_count() -> usize {
-                [$($enum_name::$name),*].len()
-            }
-        }
-    };
-    //($uint:ty:
-    // $(#[$comment:meta])*
-    // $enum_vis:vis enum $enum_name:ident
-    //{ }
-
-}
 
 enum_builder! (
-//#[derive(Default, Copy, Clone, Debug, PartialEq, FromPrimitive)]
-//#[repr(u8)]
-pub enum State {
-    Initial = 0,
-    SKIP8,
-    TOTALSIZE4,
-    BUFSIZE4,
-
-    //#[default]
-    //Unknown = 0xFF,
-}
-);
-const STATE_VARIANTS: usize = 5;
-
-// potentially we could have another machine that tracks the count for each state and increments
-// where appropriate.
-fn make_state() -> Vec<u8> {
-    let mut sm = vec![0u8; 256 * STATE_VARIANTS];
-    for c in 0usize..=255 {
-        sm[State::Initial as usize * 256 + c] = State::SKIP8 as _;
-        sm[State::SKIP8 as usize * 256 + c] = State::SKIP8 as _;
-        sm[State::TOTALSIZE4 as usize * 256 + c] = State::TOTALSIZE4 as  _;
-        sm[State::BUFSIZE4 as usize * 256 + c] = State::BUFSIZE4 as  _;
-    }
-    sm
-}
-
-
-enum_builder! {
-#[derive(Default, Copy, Clone, Debug, PartialEq, FromPrimitive)]
-    pub enum Test {
-        #[default]
+    pub enum State {
         Initial = 0,
         SKIP8,
         TOTALSIZE4,
         BUFSIZE4,
     }
+);
+const STATE_VARIANTS: usize = State::attr_count();
+
+// potentially we could have another machine that tracks the count for each state and increments
+// where appropriate.
+fn make_state() -> Vec<u8> {
+    let mut sm = vec![0u8; 256 * STATE_VARIANTS];
+    for enum_state in 0..State::attr_count() {
+        let state = State::from_primitive(enum_state as _);
+        for c in 0usize..=255 {
+            sm[state as usize * 256 + c] = enum_state as _;
+        }
+    }
+    sm
 }

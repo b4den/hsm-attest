@@ -39,12 +39,30 @@ fn run_parse() -> Result<(), error::ParseError> {
 }
 
 fn register_functions(machine: &mut Machine) {
+    machine.map_func(State::SKIP8.to(State::SKIP8), Func::Fun(|m| {
+        if m.inc_count() & 0x00000008 != 0 {
+            m.reset_count();
+            return Some(m.next_state());
+        }
+        None
+    }));
+
+    machine.map_func(State::BUFSIZE4.to(State::BUFSIZE4), Func::Fun(|m| {
+        if m.inc_count() & 0x00000004 != 0 {
+            m.reset_count();
+            return Some(m.next_state());
+        }
+        None
+    }));
+
     machine.map_func(State::TOTALSIZE4.to(State::TOTALSIZE4), Func::Fun(|m| {
         println!("WOW");
         println!("total size! count = {}", m.current_count());
         println!("m anded = {}", m.current_count() ^ 0x00000004);
         println!("current byte in total = {}", m.current_byte());
+        m.be_int = m.be_int << 8 | m.current_byte() as u32;
         if m.inc_count() == 4 {
+            println!("BE INT {}", m.be_int);
             m.reset_count();
             return Some(m.next_state())
         }
