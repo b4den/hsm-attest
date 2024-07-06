@@ -1,6 +1,7 @@
 macro_rules! enum_builder {
     ($(#[$comment:meta])* $enum_vis:vis enum $enum_name:ident { $( $(#[$met:meta])? $name:ident $(= $exp:expr)?, )*}  ) => {
 
+        $($comment)?
         #[derive(Default, Copy, Clone, Debug, PartialEq, FromPrimitive)]
         #[repr(u8)]
         $enum_vis enum $enum_name {

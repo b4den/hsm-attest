@@ -7,17 +7,24 @@ use function::{build_unboxed_handlers, Callable, Func, FuncMap};
 use num_enum::FromPrimitive;
 
 pub type FuncResult = Vec<Vec<Func<fn(&mut Machine) -> Option<State>>>>;
+const SIG_SIZE:usize = 256;
 
 #[derive(Debug)]
 pub struct Machine {
-    state: State,
-    prev: State,
-    byte: u8,
     stack: Vec<u8>,
     state_machine: Vec<u8>,
     func_table: FuncResult,
+    state: State,
+    prev: State,
     counter: u32,
     pub be_int: u32,
+    byte: u8,
+    index: usize,
+    pub total_size: u32,
+    pub buff_size: u32,
+    pub attr_offset: u32,
+    pub firstkey_offset: u32,
+    pub secondkey_offset: u32,
 }
 
 impl Machine {
@@ -31,6 +38,12 @@ impl Machine {
             counter: 0,
             byte: 0,
             be_int: 0,
+            index: 0,
+            total_size: 0,
+            buff_size: 0,
+            attr_offset: 0,
+            firstkey_offset: 0,
+            secondkey_offset: 0,
         }
     }
 
@@ -48,8 +61,14 @@ impl Machine {
             .run_funcs(current_state, proposed_state.into())
             .unwrap_or_else(|| current_state);
 
+        // if we've manually overidden the state then reset the counters
+        if proposed_state != new_state as _ {
+            self.reset_count();
+        };
+
         self.state = new_state.into();
         self.prev = current_state;
+        self.index += 1;
     }
 
     pub fn run_funcs(&mut self, current: State, new_state: State) -> Option<State> {
@@ -93,6 +112,14 @@ impl Machine {
         self.state = new_state;
     }
 
+    pub fn set_total_size(&mut self, size: u32) {
+        self.total_size = size;
+    }
+
+    pub fn set_buf_size(&mut self, size: u32) {
+        self.buff_size = size;
+    }
+
     pub fn reset_count(&mut self) {
         self.counter = 0;
         self.be_int = 0;
@@ -106,6 +133,10 @@ impl Machine {
         self.counter += 1;
         self.counter
     }
+
+    pub fn get_index(&self) -> usize {
+        self.index
+    }
 }
 
 enum_builder! (
@@ -114,6 +145,12 @@ enum_builder! (
         SKIP8,
         TOTALSIZE4,
         BUFSIZE4,
+        SkipToOffset,
+        SkipU16_2,
+        OffsetPubkey16,
+        OffsetPrivkey16,
+        Skip4,
+        FirstAttrs,
     }
 );
 
