@@ -1,6 +1,6 @@
 use hsmattest::error::{self, ParseError};
 use hsmattest::function::{FuncState, Func};
-use hsmattest::{Machine, State};
+use hsmattest::{Machine, Mode, State};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
@@ -111,21 +111,125 @@ fn register_functions(machine: &mut Machine) {
     machine.map_func(State::OffsetPrivkey16.to(State::OffsetPrivkey16), Func::Fun(|m| {
         m.secondkey_offset = m.secondkey_offset << 8 | m.current_byte() as u32;
         let mask = (!((m.inc_count() == 2) as i32) + 1) as u32;
+        if mask == 0xFFFFFFFF {
+            if m.secondkey_offset == 0 {
+                m.set_mode(Mode::Symmetric);
+                m.push_state(State::Signature);
+            } else {
+                m.push_state(State::Signature);
+                m.push_state(State::SecondaryKey);
+            };
+        }
         let st = (mask & m.next_state() as u32) | (!mask & m.state() as u32);
         Some(State::from_primitive(st as _))
     }));
 
+    // this operation will also check on the last iteration whether secondkey_offset is greater
+    // than 0.
+    // If it is, then we have private key attestation to handle for assymetric keys
+    // If its not, then we have a symmetric key to parse, moving directly to signature at the end.
     machine.map_func(State::Skip4.to(State::Skip4), Func::Fun(|m| {
         println!("skip4");
         let mask = (!((m.inc_count() == 1 << 2) as i32) + 1) as u32;
+
         Some(State::from_primitive(
                 ( (mask & m.next_state() as u32) | (!mask & m.state() as u32) ) as u8
         ))
+    }));
+
+    machine.map_func(vec![State::AttrLen, State::SecondaryKey].to(State::AttrLen), Func::Fun(|m| {
+        // take four bytes here, and assign to our attr count.
+        // then skip another four and start parsing.
+        m.attr_count = m.attr_count << 8 | m.current_byte() as u32;
+
+        // check if counter is four bytes.
+        //let mask = (!((m.inc_count() == 4) as i32) + 1) as u32;
+        let mask = (((m.inc_count() as i32 ^ 4) - 1) >> 31) as u32;
+
+        let st = (mask & m.next_state() as u32) | (!mask & m.state() as u32);
+        Some(State::from_primitive(st as _))
+    }));
+
+    machine.map_func(State::SkipAttr4.to(State::SkipAttr4), Func::Fun(|m| {
+        let mask = (((m.inc_count() as i32 ^ 4) - 1) >> 31) as u32;
+
+        if mask == 0xFFFFFFFF {
+            (0..m.attr_count - 1).into_iter().for_each(|_| m.push_state(State::TLVType));
+            // append ('n' -1) * 2 TLV states if we're assymmetric, otherwise n - 1
+        };
+        //m.pop_state();
+
+        Some(State::from_primitive(
+                ( (mask & m.next_state() as u32) | (!mask & m.state() as u32) ) as u8
+        ))
+    }));
+
+    machine.map_func(State::TLVType.to(State::TLVType), Func::Fun(|m| {
+        let mask = (((m.inc_count() as i32 ^ 4) - 1) >> 31) as u32;
+        m.tlv_type = m.tlv_type << 8 | m.current_byte() as u32;
+        if mask == 0xFFFFFFFF {
+            println!("tlv type = {:04x}", m.tlv_type);
+        }
+        Some(State::from_primitive(
+                ( (mask & m.next_state() as u32) | (!mask & m.state() as u32) ) as u8
+        ))
+    }));
+
+    machine.map_func(State::TLVLen.to(State::TLVLen), Func::Fun(|m| {
+        let mask = (((m.inc_count() as i32 ^ 4) - 1) >> 31) as u32;
+        m.tlv_len = m.tlv_len << 8 | m.current_byte() as u32;
+        if mask == 0xFFFFFFFF {
+            println!("tlv len = {}", m.tlv_len);
+        }
+        Some(State::from_primitive(
+                ( (mask & m.next_state() as u32) | (!mask & m.state() as u32) ) as u8
+        ))
+    }));
+
+    machine.map_func(State::TLVValue.to(State::TLVValue), Func::Fun(|m| {
+
+        let mask = (((m.inc_count() as i32 ^ m.tlv_len as i32) - 1) >> 31) as u32;
+
+        if mask == 0xFFFFFFFF {
+            m.attrs_processed +=1;
+            println!("tlv value current_byte = {:02x}", m.current_byte());
+            let retval = m.pop_state();
+            println!("retval is {retval:?}");
+            retval
+        } else {
+            println!("tlv value current_byte = {:02x} (not finished)", m.current_byte());
+            None
+        }
+        // tlv should look at the type field and length field and then determine the value
+        // at this point, we should probably have a trait that can handle parsing these.
+        //
+        // once the tlv_len field is equal to the tlv_value_count, we should pop the state.
+        // the popped state will either:
+        // 1. give us back another round of TLV parsing
+        // 2. move us to the next key-type and TLV parsing
+        // 3. move us to the signature phase.
 
     }));
-    machine.map_func(State::FirstAttrs.to(State::FirstAttrs), Func::Fun(|m| {
-        println!("firstattrs! {}", m.current_byte());
-        println!("firstattrs! privkey offset {}", m.secondkey_offset);
+    machine.map_func(State::SecondaryKey.to(State::SecondaryKey), Func::Fun(|m| {
+        // recall there's a 32byte header where we 'start' counting offset.
+        // 16 bytes for the signature delta,
+        // skip 3, then go to attr len
+
+        let mask = (((m.inc_count() as i32 ^ 4) - 1) >> 31) as u32;
+        if mask == 0xFFFFFFFF {
+            m.attr_count = 0;
+            m.tlv_type = 0;
+            m.tlv_len = 0;
+            //println!("GOING SECOND KEY NOW - current byte = {}", m.current_byte());
+            return Some(State::AttrLen);
+        } else {
+            //println!("SECOND KEY - current byte = {}", m.current_byte());
+            return None;
+        }
+    }));
+
+    machine.map_func(State::Signature.to(State::Signature), Func::Fun(|m| {
+        println!("in signature! {}", m.current_byte());
         None
     }));
 

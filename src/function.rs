@@ -1,5 +1,3 @@
-use std::rc::Rc;
-
 use crate::{Machine, State, STATE_VARIANTS};
 use num_enum::FromPrimitive;
 

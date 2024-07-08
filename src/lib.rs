@@ -12,6 +12,7 @@ const SIG_SIZE:usize = 256;
 #[derive(Debug)]
 pub struct Machine {
     stack: Vec<u8>,
+    state_stack: Vec<State>,
     state_machine: Vec<u8>,
     func_table: FuncResult,
     state: State,
@@ -25,6 +26,11 @@ pub struct Machine {
     pub attr_offset: u32,
     pub firstkey_offset: u32,
     pub secondkey_offset: u32,
+    pub attrs_processed: u32,
+    pub attr_count: u32,
+    mode: Mode,
+    pub tlv_type: u32,
+    pub tlv_len: u32,
 }
 
 impl Machine {
@@ -33,6 +39,7 @@ impl Machine {
             state: State::from_primitive(1),
             prev: State::Initial,
             stack: Vec::new(),
+            state_stack: Vec::new(),
             state_machine: make_state(),
             func_table: build_unboxed_handlers(),
             counter: 0,
@@ -44,6 +51,11 @@ impl Machine {
             attr_offset: 0,
             firstkey_offset: 0,
             secondkey_offset: 0,
+            attrs_processed: 0,
+            attr_count: 0,
+            mode: Mode::default(),
+            tlv_type: 0,
+            tlv_len: 0,
         }
     }
 
@@ -120,6 +132,14 @@ impl Machine {
         self.buff_size = size;
     }
 
+    pub fn set_mode(&mut self, mode: Mode) {
+        self.mode = mode;
+    }
+
+    pub fn get_mode(&self) -> Mode {
+        self.mode
+    }
+
     pub fn reset_count(&mut self) {
         self.counter = 0;
         self.be_int = 0;
@@ -137,6 +157,14 @@ impl Machine {
     pub fn get_index(&self) -> usize {
         self.index
     }
+
+    pub fn push_state(&mut self, state: State) {
+        self.state_stack.push(state);
+    }
+
+    pub fn pop_state(&mut self) -> Option<State> {
+        self.state_stack.pop()
+    }
 }
 
 enum_builder! (
@@ -150,7 +178,13 @@ enum_builder! (
         OffsetPubkey16,
         OffsetPrivkey16,
         Skip4,
-        FirstAttrs,
+        AttrLen,
+        SkipAttr4,
+        TLVType,
+        TLVLen,
+        TLVValue,
+        SecondaryKey,
+        Signature,
     }
 );
 
@@ -167,4 +201,11 @@ fn make_state() -> Vec<u8> {
         }
     }
     sm
+}
+
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+pub enum Mode {
+    Symmetric,
+    #[default]
+    Asymetric,
 }
