@@ -186,10 +186,12 @@ fn register_functions(machine: &mut Machine) {
 
         if mask == 0xFFFFFFFF {
             let byte_vals = m.stack_mut().drain(..).collect::<Vec<_>>();
-            println!("Type = {:04x} ({:?}), Len = {}, Value = {:?}", m.tlv_type, TLVMapping::from_int(m.tlv_type), m.tlv_len, String::from_utf8_lossy(&byte_vals[..]));
-            if let Some(tlv) = TLVMapping::from_int(m.tlv_type) {
-                println!("TLV = {}", tlv);
-            }
+            println!("Type = {:04x}  Len = {}, Value = {:?} {:?}",
+                m.tlv_type,
+                m.tlv_len,
+                String::from_utf8_lossy(&byte_vals[..]),
+                TLVMapping::from_int(m.tlv_type).encode(&byte_vals[..], m.tlv_len),
+            );
             // if we have integer values these are bizzarely represented in little endian, so we
             // should swap these without a temporary.
             // so the value at the "end" of the array is 65k, where 1 is set
