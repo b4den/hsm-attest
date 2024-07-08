@@ -2,6 +2,7 @@
 pub mod macros;
 pub mod error;
 pub mod function;
+pub mod tlv_mapping;
 
 use function::{build_unboxed_handlers, Callable, Func, FuncMap};
 use num_enum::FromPrimitive;

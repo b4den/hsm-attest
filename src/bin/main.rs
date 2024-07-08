@@ -1,12 +1,13 @@
 use hsmattest::error::{self, ParseError};
 use hsmattest::function::{FuncState, Func};
+use hsmattest::tlv_mapping::TLVMapping;
 use hsmattest::{Machine, Mode, State};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
 use num_enum::FromPrimitive;
 
-const BUF_SIZE: u16 = u16::MAX;
+const BUF_SIZE: u32 = 1 << 16;
 fn main() {
     match run_parse() {
         Ok(_) => println!("Done"),
@@ -61,7 +62,6 @@ fn register_functions(machine: &mut Machine) {
         m.be_int = m.be_int << 8 | m.current_byte() as u32;
 
         if m.inc_count() == 1 << 2 {
-            println!("buf size {}", m.be_int);
             m.set_buf_size(m.be_int);
             return Some(m.next_state());
         }
@@ -72,7 +72,6 @@ fn register_functions(machine: &mut Machine) {
         m.be_int = m.be_int << 8 | m.current_byte() as u32;
 
         if m.inc_count() == 1 << 2 {
-            println!("BE INT {}", m.be_int);
             m.set_total_size(m.be_int);
             return Some(m.next_state())
         }
@@ -94,7 +93,6 @@ fn register_functions(machine: &mut Machine) {
     }));
 
     machine.map_func(State::SkipU16_2.to(State::SkipU16_2), Func::Fun(|m| {
-        println!("Skip 16! current byte = {}", m.current_byte());
         if m.inc_count() == 3 {
             return Some(m.next_state());
         }
@@ -155,9 +153,8 @@ fn register_functions(machine: &mut Machine) {
 
         if mask == 0xFFFFFFFF {
             (0..m.attr_count - 1).into_iter().for_each(|_| m.push_state(State::TLVType));
-            // append ('n' -1) * 2 TLV states if we're assymmetric, otherwise n - 1
+            println!("Mode is {:?}", m.get_mode());
         };
-        //m.pop_state();
 
         Some(State::from_primitive(
                 ( (mask & m.next_state() as u32) | (!mask & m.state() as u32) ) as u8
@@ -167,9 +164,6 @@ fn register_functions(machine: &mut Machine) {
     machine.map_func(State::TLVType.to(State::TLVType), Func::Fun(|m| {
         let mask = (((m.inc_count() as i32 ^ 4) - 1) >> 31) as u32;
         m.tlv_type = m.tlv_type << 8 | m.current_byte() as u32;
-        if mask == 0xFFFFFFFF {
-            println!("tlv type = {:04x}", m.tlv_type);
-        }
         Some(State::from_primitive(
                 ( (mask & m.next_state() as u32) | (!mask & m.state() as u32) ) as u8
         ))
@@ -178,9 +172,7 @@ fn register_functions(machine: &mut Machine) {
     machine.map_func(State::TLVLen.to(State::TLVLen), Func::Fun(|m| {
         let mask = (((m.inc_count() as i32 ^ 4) - 1) >> 31) as u32;
         m.tlv_len = m.tlv_len << 8 | m.current_byte() as u32;
-        if mask == 0xFFFFFFFF {
-            println!("tlv len = {}", m.tlv_len);
-        }
+
         Some(State::from_primitive(
                 ( (mask & m.next_state() as u32) | (!mask & m.state() as u32) ) as u8
         ))
@@ -189,15 +181,40 @@ fn register_functions(machine: &mut Machine) {
     machine.map_func(State::TLVValue.to(State::TLVValue), Func::Fun(|m| {
 
         let mask = (((m.inc_count() as i32 ^ m.tlv_len as i32) - 1) >> 31) as u32;
+        let current_byte = m.current_byte();
+        m.stack_mut().push(current_byte);
 
         if mask == 0xFFFFFFFF {
-            m.attrs_processed +=1;
-            println!("tlv value current_byte = {:02x}", m.current_byte());
+            let byte_vals = m.stack_mut().drain(..).collect::<Vec<_>>();
+            println!("Type = {:04x} ({:?}), Len = {}, Value = {:?}", m.tlv_type, TLVMapping::from_int(m.tlv_type), m.tlv_len, String::from_utf8_lossy(&byte_vals[..]));
+            if let Some(tlv) = TLVMapping::from_int(m.tlv_type) {
+                println!("TLV = {}", tlv);
+            }
+            // if we have integer values these are bizzarely represented in little endian, so we
+            // should swap these without a temporary.
+            // so the value at the "end" of the array is 65k, where 1 is set
+            //
+            // position end - 1 is 16 ^ 3 = 4096
+            // position end - 2 is 16 ^ 2 = 256
+            // position end - 3 is 16 ^ 1 = 16
+            // so [0, 0, 12, 0] ends up
+            // 0 << 0
+            // 12 << 8
+            // 0 << 16
+            // 0 << 24
+            // and [1, 0, 1] ends up [0, 1, 0, 1]
+            // 1 << 0 -------------------------^
+            // 0 << 8
+            // 1 << 16
+            // 0 << 24
+            // and 00000c ends up 00 00 0c 00, where the LSB is always padded
+
+            m.attrs_processed += 1;
+            m.tlv_type = 0;
+            m.tlv_len = 0;
             let retval = m.pop_state();
-            println!("retval is {retval:?}");
             retval
         } else {
-            println!("tlv value current_byte = {:02x} (not finished)", m.current_byte());
             None
         }
         // tlv should look at the type field and length field and then determine the value
@@ -210,21 +227,17 @@ fn register_functions(machine: &mut Machine) {
         // 3. move us to the signature phase.
 
     }));
+
     machine.map_func(State::SecondaryKey.to(State::SecondaryKey), Func::Fun(|m| {
         // recall there's a 32byte header where we 'start' counting offset.
         // 16 bytes for the signature delta,
         // skip 3, then go to attr len
-
         let mask = (((m.inc_count() as i32 ^ 4) - 1) >> 31) as u32;
         if mask == 0xFFFFFFFF {
             m.attr_count = 0;
-            m.tlv_type = 0;
-            m.tlv_len = 0;
-            //println!("GOING SECOND KEY NOW - current byte = {}", m.current_byte());
-            return Some(State::AttrLen);
+            Some(State::AttrLen)
         } else {
-            //println!("SECOND KEY - current byte = {}", m.current_byte());
-            return None;
+            None
         }
     }));
 
