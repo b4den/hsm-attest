@@ -81,7 +81,7 @@ fn register_functions(machine: &mut Machine) {
     machine.map_func(State::SkipToOffset.to(State::SkipToOffset), Func::Fun(|m| {
         // set the attribute offset if it isn't already
         let mask = (!((m.attr_offset == 0) as i32) + 1) as u32;
-        m.attr_offset = (mask & (m.total_size - (m.buff_size + 256))) | (!mask & m.attr_offset);
+        m.attr_offset = (mask & (m.total_size - (m.buff_size + m.signature_len as u32))) | (!mask & m.attr_offset);
 
         // now check if the current index is at our offset
         if m.attr_offset as usize == m.get_index() {
@@ -186,11 +186,13 @@ fn register_functions(machine: &mut Machine) {
 
         if mask == 0xFFFFFFFF {
             let byte_vals = m.stack_mut().drain(..).collect::<Vec<_>>();
-            println!("Type = {:04x}  Len = {}, Value = {:?} {:?}",
+            let tlv = TLVMapping::from_int(m.tlv_type);
+            println!("Type = {:04x}  {} Len = {}, Value = {:?} {:?}",
                 m.tlv_type,
+                tlv,
                 m.tlv_len,
                 String::from_utf8_lossy(&byte_vals[..]),
-                TLVMapping::from_int(m.tlv_type).encode(&byte_vals[..], m.tlv_len),
+                tlv.encode(&byte_vals[..], m.tlv_len),
             );
             // if we have integer values these are bizzarely represented in little endian, so we
             // should swap these without a temporary.
@@ -244,7 +246,13 @@ fn register_functions(machine: &mut Machine) {
     }));
 
     machine.map_func(State::Signature.to(State::Signature), Func::Fun(|m| {
-        println!("in signature! {}", m.current_byte());
+        let current_byte = m.current_byte();
+        m.stack_mut().push(current_byte);
+        let mask = (((m.inc_count() as i32 ^ m.signature_len as i32) -1) >> 31) as u32;
+
+        if mask == 0xFFFFFFFF {
+            println!("End of signature! {:?}", m.stack_mut().drain(..));
+        }
         None
     }));
 

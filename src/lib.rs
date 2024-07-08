@@ -32,6 +32,7 @@ pub struct Machine {
     mode: Mode,
     pub tlv_type: u32,
     pub tlv_len: u32,
+    pub signature_len: usize,
 }
 
 impl Machine {
@@ -57,7 +58,14 @@ impl Machine {
             mode: Mode::default(),
             tlv_type: 0,
             tlv_len: 0,
+            signature_len: 256,
         }
+    }
+
+    pub fn new_with_signature_len(len: usize) -> Self {
+        let mut machine = Self::new();
+        machine.set_signature_len(len);
+        machine
     }
 
     pub fn run_buf(&mut self, buff: &[u8]) {
@@ -165,6 +173,10 @@ impl Machine {
 
     pub fn pop_state(&mut self) -> Option<State> {
         self.state_stack.pop()
+    }
+
+    pub fn set_signature_len(&mut self, len: usize) {
+        self.signature_len = len;
     }
 }
 
