@@ -153,7 +153,7 @@ fn register_functions(machine: &mut Machine) {
 
         if mask == 0xFFFFFFFF {
             (0..m.attr_count - 1).into_iter().for_each(|_| m.push_state(State::TLVType));
-            println!("Mode is {:?}", m.get_mode());
+            println!("------------KEYMODE: {:?} -------------", m.get_keymode());
         };
 
         Some(State::from_primitive(
@@ -187,11 +187,11 @@ fn register_functions(machine: &mut Machine) {
         if mask == 0xFFFFFFFF {
             let byte_vals = m.stack_mut().drain(..).collect::<Vec<_>>();
             let tlv = TLVMapping::from_int(m.tlv_type);
-            println!("Type = {:04x}  {} Len = {}, Value = {:?} {:?}",
+            println!("Type = {:04x}  {} Len = {},  {:?}", // Value = {:?}",
                 m.tlv_type,
                 tlv,
                 m.tlv_len,
-                String::from_utf8_lossy(&byte_vals[..]),
+                //String::from_utf8_lossy(&byte_vals[..]),
                 tlv.encode(&byte_vals[..], m.tlv_len),
             );
             // if we have integer values these are bizzarely represented in little endian, so we
@@ -239,6 +239,7 @@ fn register_functions(machine: &mut Machine) {
         let mask = (((m.inc_count() as i32 ^ 4) - 1) >> 31) as u32;
         if mask == 0xFFFFFFFF {
             m.attr_count = 0;
+            m.set_keymode(hsmattest::KeyMode::Secondary);
             Some(State::AttrLen)
         } else {
             None

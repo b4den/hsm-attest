@@ -33,6 +33,7 @@ pub struct Machine {
     pub tlv_type: u32,
     pub tlv_len: u32,
     pub signature_len: usize,
+    pub key_mode: KeyMode,
 }
 
 impl Machine {
@@ -59,6 +60,7 @@ impl Machine {
             tlv_type: 0,
             tlv_len: 0,
             signature_len: 256,
+            key_mode: KeyMode::default(),
         }
     }
 
@@ -178,6 +180,14 @@ impl Machine {
     pub fn set_signature_len(&mut self, len: usize) {
         self.signature_len = len;
     }
+
+    pub fn get_keymode(&self) -> KeyMode {
+        self.key_mode
+    }
+
+    pub fn set_keymode(&mut self, keymode: KeyMode) {
+        self.key_mode = keymode;
+    }
 }
 
 enum_builder! (
@@ -221,4 +231,11 @@ pub enum Mode {
     Symmetric,
     #[default]
     Asymetric,
+}
+
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+pub enum KeyMode {
+    #[default]
+    Primary,
+    Secondary,
 }
