@@ -60,7 +60,7 @@ pub trait EncodeTLV: std::ops::Deref {
     fn encode(bytes: &[u8], len: u32) -> Option<Self>
     where
         Self: Sized;
-    fn into_tlv(self) -> TLVValue;
+    fn to_str(&self) -> String;
 }
 
 #[derive(Debug)]
@@ -72,8 +72,9 @@ impl EncodeTLV for ClassKey {
     {
         None
     }
-    fn into_tlv(self) -> TLVValue {
-        TLVValue::ClassKey(self)
+
+    fn to_str(&self) -> String {
+        format!("{}", self.0)
     }
 }
 
@@ -87,15 +88,15 @@ impl Deref for ClassKey {
 #[derive(Debug)]
 pub struct Bool(bool);
 impl EncodeTLV for Bool {
-    fn encode(bytes: &[u8], len: u32) -> Option<Self>
+    fn encode(bytes: &[u8], _len: u32) -> Option<Self>
     where
         Self: Sized,
     {
         bytes.get(0).map(|b| *b > 0).map(|b| Bool(b))
     }
 
-    fn into_tlv(self) -> TLVValue {
-        TLVValue::Bool(self)
+    fn to_str(&self) -> String {
+        format!("{}", self.0)
     }
 }
 impl Deref for Bool {
@@ -116,8 +117,9 @@ impl EncodeTLV for HexStr128 {
             .ok()
             .map(HexStr128)
     }
-    fn into_tlv(self) -> TLVValue {
-        TLVValue::HexStr128(self)
+
+    fn to_str(&self) -> String {
+        format!("{}", self.0)
     }
 }
 
@@ -142,8 +144,9 @@ impl EncodeTLV for Bytes {
         //Some(HexStr128(s))
         Some(Bytes(s))
     }
-    fn into_tlv(self) -> TLVValue {
-        TLVValue::Bytes(self)
+
+    fn to_str(&self) -> String {
+        format!("{}", self.0)
     }
 }
 
@@ -172,8 +175,9 @@ impl EncodeTLV for ByteStr {
         String::from_utf8(s).ok()
                  .map(ByteStr)
     }
-    fn into_tlv(self) -> TLVValue {
-        TLVValue::ByteStr(self)
+
+    fn to_str(&self) -> String {
+        format!("{}", self.0)
     }
 }
 
@@ -193,10 +197,12 @@ impl EncodeTLV for RawBytes {
     {
         Some(RawBytes(bytes.to_vec()))
     }
-    fn into_tlv(self) -> TLVValue {
-        TLVValue::RawBytes(self)
+
+    fn to_str(&self) -> String {
+        format!("{:?}", self.0)
     }
 }
+
 impl Deref for RawBytes {
     type Target = [u8];
     fn deref(&self) -> &Self::Target {
@@ -207,21 +213,33 @@ impl Deref for RawBytes {
 #[derive(Debug)]
 pub struct Int(u32);
 impl EncodeTLV for Int {
-    fn encode(bytes: &[u8], len: u32) -> Option<Self>
+    //fn encode(bytes: &[u8], len: u32) -> Option<Self>
+    //where
+    //    Self: Sized,
+    //{
+    //    let index_mask = (len as i32 ^ 3) - 1 >> 31;
+    //    let start_index = (index_mask & 1) | (!index_mask & 0);
+    //    let val = if start_index == 1 {
+    //        u32::from_be_bytes([0x00, bytes[0], bytes[1], bytes[2]])
+    //    } else {
+    //        u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]])
+    //    };
+    //    Some(Int(val))
+    //}
+    fn encode(bytes: &[u8], _len: u32) -> Option<Self>
     where
         Self: Sized,
     {
-        let index_mask = (len as i32 ^ 3) - 1 >> 31;
-        let start_index = (index_mask & 1) | (!index_mask & 0);
-        let val = if start_index == 1 {
-            u32::from_be_bytes([0x00, bytes[0], bytes[1], bytes[2]])
-        } else {
-            u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]])
-        };
+        let mut val = 0;
+        for v in bytes {
+            val = val << 8 | *v as u32;
+        }
+
         Some(Int(val))
     }
-    fn into_tlv(self) -> TLVValue {
-        TLVValue::Int(self)
+
+    fn to_str(&self) -> String {
+        format!("{}", self.0)
     }
 }
 
@@ -241,6 +259,20 @@ pub enum TLVValue {
     RawBytes(RawBytes),
     ByteStr(ByteStr),
     Int(Int),
+}
+
+impl TLVValue {
+    pub fn to_str(&self) -> String {
+        match self {
+            TLVValue::Bool(ref b) => b.to_str(),
+            TLVValue::ClassKey(b) => b.to_str(),
+            TLVValue::HexStr128(b) => b.to_str(),
+            TLVValue::Bytes(b) => b.to_str(),
+            TLVValue::RawBytes(b) => b.to_str(),
+            TLVValue::ByteStr(b) => b.to_str(),
+            TLVValue::Int(b) => b.to_str(),
+        }
+    }
 }
 
 

@@ -106,6 +106,10 @@ fn register_functions(machine: &mut Machine) {
         Some(State::from_primitive(st as _))
     }));
 
+    // this operation will also check on the last iteration whether secondkey_offset is greater
+    // than 0.
+    // If it is, then we have private key attestation to handle for assymetric keys
+    // If its not, then we have a symmetric key to parse, moving directly to signature at the end.
     machine.map_func(State::OffsetPrivkey16.to(State::OffsetPrivkey16), Func::Fun(|m| {
         m.secondkey_offset = m.secondkey_offset << 8 | m.current_byte() as u32;
         let mask = (!((m.inc_count() == 2) as i32) + 1) as u32;
@@ -122,12 +126,7 @@ fn register_functions(machine: &mut Machine) {
         Some(State::from_primitive(st as _))
     }));
 
-    // this operation will also check on the last iteration whether secondkey_offset is greater
-    // than 0.
-    // If it is, then we have private key attestation to handle for assymetric keys
-    // If its not, then we have a symmetric key to parse, moving directly to signature at the end.
     machine.map_func(State::Skip4.to(State::Skip4), Func::Fun(|m| {
-        println!("skip4");
         let mask = (!((m.inc_count() == 1 << 2) as i32) + 1) as u32;
 
         Some(State::from_primitive(
@@ -192,26 +191,8 @@ fn register_functions(machine: &mut Machine) {
                 tlv,
                 m.tlv_len,
                 //String::from_utf8_lossy(&byte_vals[..]),
-                tlv.encode(&byte_vals[..], m.tlv_len),
+                tlv.encode(&byte_vals[..], m.tlv_len).to_str(),
             );
-            // if we have integer values these are bizzarely represented in little endian, so we
-            // should swap these without a temporary.
-            // so the value at the "end" of the array is 65k, where 1 is set
-            //
-            // position end - 1 is 16 ^ 3 = 4096
-            // position end - 2 is 16 ^ 2 = 256
-            // position end - 3 is 16 ^ 1 = 16
-            // so [0, 0, 12, 0] ends up
-            // 0 << 0
-            // 12 << 8
-            // 0 << 16
-            // 0 << 24
-            // and [1, 0, 1] ends up [0, 1, 0, 1]
-            // 1 << 0 -------------------------^
-            // 0 << 8
-            // 1 << 16
-            // 0 << 24
-            // and 00000c ends up 00 00 0c 00, where the LSB is always padded
 
             m.attrs_processed += 1;
             m.tlv_type = 0;
@@ -221,15 +202,6 @@ fn register_functions(machine: &mut Machine) {
         } else {
             None
         }
-        // tlv should look at the type field and length field and then determine the value
-        // at this point, we should probably have a trait that can handle parsing these.
-        //
-        // once the tlv_len field is equal to the tlv_value_count, we should pop the state.
-        // the popped state will either:
-        // 1. give us back another round of TLV parsing
-        // 2. move us to the next key-type and TLV parsing
-        // 3. move us to the signature phase.
-
     }));
 
     machine.map_func(State::SecondaryKey.to(State::SecondaryKey), Func::Fun(|m| {

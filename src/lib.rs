@@ -8,7 +8,6 @@ use function::{build_unboxed_handlers, Callable, Func, FuncMap};
 use num_enum::FromPrimitive;
 
 pub type FuncResult = Vec<Vec<Func<fn(&mut Machine) -> Option<State>>>>;
-const SIG_SIZE:usize = 256;
 
 #[derive(Debug)]
 pub struct Machine {
