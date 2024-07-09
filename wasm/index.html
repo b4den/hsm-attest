@@ -1,5 +1,6 @@
 <script>
   let attestion;
+  let wasmInstance;
   (async () => {
     const { instance } = await WebAssembly.instantiateStreaming(
       fetch("./hsmattest.wasm"),
@@ -8,11 +9,12 @@
         "env": {
           "js_sin": Math.sin,
           "consoleLog": (ptr) => {
-            console.log("from wasm:");
+            console.log("from wasm: " + fromCString(ptr));
           },
         },
       }
     );
+    wasmInstance = instance;
 
     /* 
       let byte_buffer_ptr = instance.exports.alloc(input.length);
@@ -83,6 +85,16 @@
     }
 
   })();
+  function fromCString(ptr) {
+    const m = new Uint8Array(
+        wasmInstance.exports.memory.buffer, ptr);
+    let s = "";
+    while (m[s.length] != 0) {
+        s += String.fromCharCode(m[s.length]);
+    }
+    wasmInstance.exports.dealloc_cstring(ptr);
+    return s;
+  }
   attestation = [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x0a, 0xe0,
   0x00, 0x00, 0x09, 0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0c, 0x22,
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x15, 0x16, 0x00, 0x01, 0x00, 0x03,
