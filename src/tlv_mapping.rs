@@ -90,6 +90,7 @@ tlv_mapping! {
 #[derive(Debug)]
 #[repr(u8)]
 pub enum ClassKey {
+    // asymmetric keys
     Pubkey = 2,
     Privkey = 3,
     // symmetric key
@@ -167,7 +168,6 @@ impl EncodeTLV for Bytes {
         for byte in bytes {
             write!(&mut s, "{:02x}", byte).ok()?;
         }
-        //Some(HexStr128(s))
         Some(Bytes(s))
     }
 
@@ -217,19 +217,6 @@ impl EncodeTLV for RawBytes {
 #[derive(Debug)]
 pub struct Int(u32);
 impl EncodeTLV for Int {
-    //fn encode(bytes: &[u8], len: u32) -> Option<Self>
-    //where
-    //    Self: Sized,
-    //{
-    //    let index_mask = (len as i32 ^ 3) - 1 >> 31;
-    //    let start_index = (index_mask & 1) | (!index_mask & 0);
-    //    let val = if start_index == 1 {
-    //        u32::from_be_bytes([0x00, bytes[0], bytes[1], bytes[2]])
-    //    } else {
-    //        u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]])
-    //    };
-    //    Some(Int(val))
-    //}
     fn encode(bytes: &[u8], _len: u32) -> Option<Self>
     where
         Self: Sized,

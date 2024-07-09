@@ -3,9 +3,18 @@ pub mod macros;
 pub mod error;
 pub mod function;
 pub mod tlv_mapping;
+pub mod state_transitions;
 
 use function::{build_unboxed_handlers, Callable, Func, FuncMap};
 use num_enum::FromPrimitive;
+
+#[no_mangle]
+pub extern fn the_answer() -> u32 {
+    let m  = Machine::new();
+    let m = Box::new(m);
+    println!("got the answer!");
+    0
+}
 
 pub type FuncResult = Vec<Vec<Func<fn(&mut Machine) -> Option<State>>>>;
 

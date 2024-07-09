@@ -6,12 +6,38 @@ use num_enum::FromPrimitive;
 
 /* Here is where the state machine logic is defined.
  * Notes
- * 1. Shifting between states via map_func returns will reset the counters.
- * 2. All integer values in the TLV are in big-endian, therefore we must bit-shift these as they
+ * - Shifting between states via map_func returns will reset the counters.
+ * - All integer values in the TLV are in big-endian, therefore we must bit-shift these as they
  *    appear in network byte order.
- * 3. In the case where we don't have a full byte buffer payload, we attempt to store each byte on
+ * - In the case where we don't have a full byte buffer payload, we attempt to store each byte on
  *    the stack and dispatch on the next state transition. This allows for a full asynchronous
  *    state machine model, even in the case where reads are returning 1 byte at a time.
+ *
+ *
+ * This approach has several advantages over what Google and AWS manifest for verifying keys,
+ * including over the manufacturers examples.
+ *
+ * 1. It doesn't rely on unsafe struct marshalling (see parse_v2.py) in the Cavium documents
+ * 2. It doesn't have external dependencies - its entirely written in pure Rust with compile time
+ *    macro dependencies as helpers.
+ * 3. It's fully asynchronous, meaning we don't need to buffer a complete payload prior to
+ *    processing the attestation data. You can prove this by reading in a single byte at a time, at
+ *    an interval of your choosing.
+ * 4. It doesn't use any unsafe functions, and doesn't require bounds checking for allocations as
+ *    we're simply using a byte-by-byte method as they arrive from input.
+ * 5. It's extremely lightweight, and reserves allocations only for the machine setup and
+ *    serializing back to callers.
+ * 6. The `Type ID`'s in the TLV payload are exactly to specification and are in their human
+ *    readable form so no further lookups required.
+ * 7. All TLV 'values' are parsed into their correct human representation (e.g., bytes, ints,
+ *    hex strings). Therefore no additional lookups on arbitrary integer fields are required.
+ * 8. It works across both symmetric and asymmetric keys, and is available as a cross platform
+ *    library for any language. (See the lib-wasm directory as an example for an offline in-browser
+ *    version). Compiles to a single executable for bins.
+ * 9. Cavium (Now Marvell)'s hardware marshalls data across the network in network byte order
+ *     (aka. big endian/ msb first). Because we're doing things byte-at-a-time we don't need to be
+ *     concerned with 'endianess', and therefore is a much safer implementation, and much more
+ *     performant via bitwise operands.
  * */
 pub fn register_functions(machine: &mut Machine) {
     machine.map_func(State::SKIP8.to(State::SKIP8), Func::Fun(|m| {
