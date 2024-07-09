@@ -228,5 +228,4 @@ fn register_functions(machine: &mut Machine) {
         }
         None
     }));
-
 }
