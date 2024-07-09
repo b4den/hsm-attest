@@ -1,6 +1,25 @@
 use std::ffi::{c_char, CString};
 use hsmattest::{state_transitions, Machine};
 
+extern "C" {
+    fn consoleLog(p: *mut c_char);
+}
+
+fn log(s: String) {
+    let c_string = CString::new(s).unwrap();
+    let p: *mut c_char = c_string.into_raw();
+
+    unsafe {
+        consoleLog(p);
+    }
+}
+
+#[no_mangle]
+fn dealloc_cstring(p: *mut c_char) {
+    let _ = unsafe {
+        CString::from_raw(p)
+    };
+}
 macro_rules! println {
     ($($tt:tt)*) => {
         $crate::log(format!($($tt)*))
@@ -24,10 +43,11 @@ pub unsafe fn parse(byte_buffer_ptr: *mut u8, byte_buffer_len: u32, kv_ptr: *mut
 
     let byte_buff = Vec::from_raw_parts(byte_buffer_ptr, byte_buffer_len as usize, byte_buffer_len as usize);
     for item in byte_buff {
-        println!("in item! ");
+        println!("in item!");
         machine.parse(item);
     }
     data[3] = 100;
+    println!("before log");
     log("In parse!".into());
 
     data.as_mut_ptr()
@@ -70,24 +90,4 @@ pub extern fn the_answer() -> u32 {
     let m  = Machine::new();
     println!("got the answer!");
     0
-}
-
-extern "C" {
-    fn consoleLog(p: *mut c_char);
-}
-
-fn log(s: String) {
-    let c_string = CString::new(s).unwrap();
-    let p: *mut c_char = c_string.into_raw();
-
-    unsafe {
-        consoleLog(p);
-    }
-}
-
-#[no_mangle]
-fn dealloc_cstring(p: *mut c_char) {
-    let _ = unsafe {
-        CString::from_raw(p)
-    };
 }

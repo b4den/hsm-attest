@@ -33,7 +33,7 @@
     let byte_buffer_ptr = copyMemory(attestation, instance);
 
     let kv_ptr = instance.exports.alloc(4);
-    let parsed = instance.exports.parse(0, 0, kv_ptr, 4);
+    let parsed = instance.exports.parse(byte_buffer_ptr, attestation.length, kv_ptr, 4);
     console.log('parsed');
     let buffer = new Uint8Array(instance.exports.memory.buffer);
 
