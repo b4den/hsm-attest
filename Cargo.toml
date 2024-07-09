@@ -8,7 +8,7 @@ edition = "2021"
 [lib]
 name = "hsmattest"
 path = "./src/lib.rs"
-#crate-type = ["cdylib"]
+crate-type = ["cdylib"]
 
 [[bin]]
 name = "hsmattest_bin"
