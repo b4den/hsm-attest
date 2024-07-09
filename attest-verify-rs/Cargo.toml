@@ -1,0 +1,27 @@
+[package]
+name = "hsmattest"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+
+[[bin]]
+name = "hsmattest_bin"
+path = "src/bin/main.rs"
+
+[dependencies]
+num_enum = "0.7.2"
+paste = "1.0.15"
+
+[profile.release]
+# 3 is default, lets go for z (optimise for size)
+opt-level = "z"
+
+# ~70k with stripping
+strip = true
+
+# ~40k for lto
+lto = true
+
+panic = "abort"
