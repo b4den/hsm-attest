@@ -82,6 +82,8 @@ tlv_mapping! {
 
         // Unknown
         0x80000000 => OBJ_UNKNOWN = Bytes,
+
+        0xFFFFFF01 => SIGNATURE = ByteStr,
     }
 }
 

@@ -1,6 +1,6 @@
 use hsmattest::error::{self, ParseError};
 use hsmattest::function::{FuncState, Func};
-use hsmattest::tlv_mapping::TLVMapping;
+use hsmattest::tlv_mapping::{Bytes, EncodeTLV, TLVMapping};
 use hsmattest::{Machine, Mode, State};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
@@ -224,7 +224,9 @@ fn register_functions(machine: &mut Machine) {
         let mask = (((m.inc_count() as i32 ^ m.signature_len as i32) -1) >> 31) as u32;
 
         if mask == 0xFFFFFFFF {
-            println!("End of signature! {:?}", m.stack_mut().drain(..));
+            let byte_stack = m.stack_mut().drain(..);
+            let byte_stack = byte_stack.as_ref();
+            println!("Attestation Signature \n{}", Bytes::encode(byte_stack, byte_stack.len() as _)?.to_str());
         }
         None
     }));

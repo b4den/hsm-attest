@@ -19,7 +19,6 @@ macro_rules! enum_builder {
 }
 
 macro_rules! tlv_mapping {
-    
     ($(#[$comment:meta])* $enum_vis:vis enum $name:ident { $( $($attr_comments:meta)?  $id:expr => $attr_name:ident = $typ:ident,)*} ) => {
             $($comment)*
             #[allow(non_camel_case_types)]
