@@ -4,10 +4,11 @@ pub mod error;
 pub mod function;
 pub mod tlv_mapping;
 pub mod state_transitions;
+pub mod writer;
 
 use function::{build_unboxed_handlers, Callable, Func, FuncMap};
 use num_enum::FromPrimitive;
-
+use writer::Writer;
 
 pub type FuncResult = Vec<Vec<Func<fn(&mut Machine) -> Option<State>>>>;
 
@@ -35,6 +36,7 @@ pub struct Machine {
     pub tlv_len: u32,
     pub signature_len: usize,
     pub key_mode: KeyMode,
+    pub writer: Option<Writer>,
 }
 
 impl Machine {
@@ -62,6 +64,7 @@ impl Machine {
             tlv_len: 0,
             signature_len: 256,
             key_mode: KeyMode::default(),
+            writer: None,
         }
     }
 
@@ -71,11 +74,26 @@ impl Machine {
         machine
     }
 
+    pub fn with_writer(mut self) -> Self {
+        let writer = Writer::new();
+        self.writer = Some(writer);
+        self
+    }
+
     pub fn run_buf(&mut self, buff: &[u8]) {
         for c in buff {
             self.parse(*c);
         }
     }
+
+    pub fn to_json_bytes(&mut self) -> Option<Vec<u8>> {
+        if let Some(writer) = self.writer.take() {
+            Some(writer.to_json_bytes())
+        } else {
+            None
+        }
+    }
+
     pub fn parse(&mut self, c: u8) {
         let current_state = self.state;
         self.byte = c;
@@ -103,6 +121,12 @@ impl Machine {
 }
 
 impl Machine {
+    pub fn write_tlv(&mut self, attr_name: String, attr_value: String, mode: KeyMode) {
+        if let Some(writer) = self.writer.as_mut() {
+            writer.push(attr_name, attr_value, mode);
+        }
+    }
+
     pub fn map_func(&mut self, mapper: FuncMap, func: Func<fn(&mut Machine) -> Option<State>>) {
         let FuncMap(from_iter, to) = mapper;
         for from in from_iter {

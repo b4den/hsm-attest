@@ -33,24 +33,22 @@ pub extern fn multi() -> (u32, u32) {
 }
 
 #[no_mangle]
-pub unsafe fn parse(byte_buffer_ptr: *mut u8, byte_buffer_len: u32, kv_ptr: *mut u8, kv_len: u32) -> *mut u8 {
-    // write some arbitrary values into kv_ptr.
-    let mut data = Vec::from_raw_parts(kv_ptr, kv_len as usize, kv_len as usize);
-    data.as_mut_slice()[..].copy_from_slice(b"hilo");
+pub unsafe fn parse(byte_buffer_ptr: *mut u8, byte_buffer_len: u32) -> (*mut u8, u32) {
 
-    let mut machine  = Machine::new();
+    let mut machine  = Machine::new().with_writer();
     state_transitions::register_functions(&mut machine);
 
     let byte_buff = Vec::from_raw_parts(byte_buffer_ptr, byte_buffer_len as usize, byte_buffer_len as usize);
     for item in byte_buff {
-        println!("in item!");
         machine.parse(item);
     }
-    data[3] = 100;
-    println!("before log");
-    log("In parse!".into());
-
-    data.as_mut_ptr()
+    if let Some(mut json_str) = machine.to_json_bytes() {
+        let ptr = json_str.as_mut_ptr();
+        let len = json_str.len();
+        std::mem::forget(json_str);
+        return (ptr, len as u32);
+    }
+    (0 as *mut _, 0)
 }
 
 #[no_mangle]
@@ -87,7 +85,7 @@ pub unsafe fn array_sum(ptr: *mut u8, len: usize) -> u8 {
 
 #[no_mangle]
 pub extern fn the_answer() -> u32 {
-    let m  = Machine::new();
+    let _m  = Machine::new();
     println!("got the answer!");
     0
 }

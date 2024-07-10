@@ -14,7 +14,7 @@ fn main() {
 }
 
 fn run_parse() -> Result<(), error::ParseError> {
-    let mut machine = Machine::new();
+    let mut machine = Machine::new().with_writer();
     register_functions(&mut machine);
 
     let fname = std::env::args().skip(1).next().ok_or(ParseError::InvalidArg(0))?;
@@ -34,6 +34,9 @@ fn run_parse() -> Result<(), error::ParseError> {
         }
         reader.consume(length);
     };
+    //if let Some(writer) = machine.to_json_bytes() {
+    //    println!("{}", String::from_utf8(writer).unwrap());
+    //}
 
     Ok(())
 }

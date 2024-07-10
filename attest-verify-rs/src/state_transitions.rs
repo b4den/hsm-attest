@@ -175,13 +175,14 @@ pub fn register_functions(machine: &mut Machine) {
         if mask == 0xFFFFFFFF {
             let byte_vals = m.stack_mut().drain(..).collect::<Vec<_>>();
             let tlv = TLVMapping::from_int(m.tlv_type);
+            let encoded = tlv.encode(&byte_vals[..], m.tlv_len).to_str();
             println!("Type = {:04x}  {} Len = {},  {:?}", // Value = {:?}",
                 m.tlv_type,
                 tlv,
                 m.tlv_len,
-                //String::from_utf8_lossy(&byte_vals[..]),
-                tlv.encode(&byte_vals[..], m.tlv_len).to_str(),
+                encoded,
             );
+            m.write_tlv(format!("{}", tlv), encoded, m.get_keymode());
 
             m.attrs_processed += 1;
             m.tlv_type = 0;
@@ -213,8 +214,12 @@ pub fn register_functions(machine: &mut Machine) {
         let mask = (((m.inc_count() as i32 ^ m.signature_len as i32) -1) >> 31) as u32;
 
         if mask == 0xFFFFFFFF {
-            let byte_stack = m.stack_mut().drain(..);
+            let byte_stack = {
+                m.stack_mut().drain(..).collect::<Vec<_>>()
+            };
             let byte_stack = byte_stack.as_ref();
+            let signature = Bytes::encode(byte_stack, byte_stack.len() as _)?.to_str();
+            m.write_tlv("Signature".into(), signature, m.get_keymode());
             println!("Attestation Signature \n{}", Bytes::encode(byte_stack, byte_stack.len() as _)?.to_str());
         }
         None

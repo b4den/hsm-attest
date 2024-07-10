@@ -1,15 +1,14 @@
+<html>
 <script>
   let attestion;
   let wasmInstance;
   (async () => {
     const { instance } = await WebAssembly.instantiateStreaming(
       fetch("./hsmattest.wasm"),
-      // New imports object:
       {
         "env": {
-          "js_sin": Math.sin,
           "consoleLog": (ptr) => {
-            console.log("from wasm: " + fromCString(ptr));
+            console.log("[wasm-log]" + fromCString(ptr));
           },
         },
       }
@@ -30,61 +29,105 @@
 
 
     // ensure we're avoiding allocations in between.
-    let byte_buffer_ptr = copyMemory(attestation, instance);
+    //let byte_buffer_ptr = copyMemory(attestation, instance);
 
-    let kv_ptr = instance.exports.alloc(4);
-    let parsed = instance.exports.parse(byte_buffer_ptr, attestation.length, kv_ptr, 4);
-    console.log('parsed');
-    let buffer = new Uint8Array(instance.exports.memory.buffer);
+    //let kv_ptr = instance.exports.alloc(4);
+    //let [json_ptr, len] = instance.exports.parse(byte_buffer_ptr, attestation.length);
+    //console.log('parsed data ');
+    //let json_arr = new Uint8Array(instance.exports.memory.buffer, json_ptr, len);
+    //console.log('json uint8array = ' + json_arr);
+    //let json_buff = JSON.parse(String.fromCharCode.apply(null, json_arr));
+    //console.log(json_buff);
 
-    let slc = buffer.slice(parsed, parsed + 4);
-    console.log(new Uint8Array(slc));
-    console.log('multi');
-    console.log(instance.exports.multi());
+    //if (len != 0) {
+    //  instance.exports.dealloc(json_ptr, len);
+    //}
 
-    // Allocate a schema for three things.
-    // [ pointer to 'keys' buf, len of keys buf, pointer to values buf, len of values buf, offsets buf];
-    // 
-    //fetch("./hsmattest.wasm")
-    //  .then(response => response.arrayBuffer())
-    //.then(
-    console.log(instance);
-    console.log(instance.exports.the_answer());
-    console.log(attestation);
+    //let buffer = new Uint8Array(instance.exports.memory.buffer);
 
-    let data = [0,1,2];
-    //let ptr = instance.exports.alloc(data.length);
-    let ptr = copyMemory(data, instance);
-    console.log('array sum = ' + instance.exports.array_sum(ptr, data.length));
 
-    let sl = buffer.slice(ptr, ptr + 10);
-    console.log('buffer slice ');
-    console.log(sl);
+    //// Allocate a schema for three things.
+    //// [ pointer to 'keys' buf, len of keys buf, pointer to values buf, len of values buf, offsets buf];
+    //// 
+    ////fetch("./hsmattest.wasm")
+    ////  .then(response => response.arrayBuffer())
+    ////.then(
+    //console.log(instance);
+    //console.log(instance.exports.the_answer());
+    //console.log(attestation);
+    let parsed_attestation = parseAttestation(attestation, instance);
+    console.log('parsed attestation!');
+    console.log(parsed_attestation);
+    toTable(parsed_attestation);
 
-    let array = [1,2,3,4,5,6,7];
-    let typedArray = new Int32Array(array);
+    //let data = [0,1,2];
+    ////let ptr = instance.exports.alloc(data.length);
+    //let ptr = copyMemory(data, instance);
+    //console.log('array sum = ' + instance.exports.array_sum(ptr, data.length));
+
+    //let sl = buffer.slice(ptr, ptr + 10);
+    //console.log('buffer slice ');
+    //console.log(sl);
+
+    //let array = [1,2,3,4,5,6,7];
+    //let typedArray = new Int32Array(array);
 
     //let pointer = instance.exports.alloc(typedArray.length * typedArray.BYTES_PER_ELEMENT);
     //instance.exports.HEAP32.set(
     //  typedArray, pointer/typedArray.BYTES_PER_ELEMENT);
 
-    console.log('pointer ' + ptr );
-    console.log('new instance ' + instance);
-
-
-    function copyMemory(data, instance) {
-      // the `alloc` function returns an offset in
-      // the module's memory to the start of the block
-      var ptr = instance.exports.alloc(data.length);
-      // create a typed `ArrayBuffer` at `ptr` of proper size
-      var mem = new Uint8Array(instance.exports.memory.buffer, ptr, data.length);
-      // copy the content of `data` into the memory buffer
-      mem.set(new Uint8Array(data));
-      // return the pointer
-      return ptr;
-    }
+    //console.log('pointer ' + ptr );
+    //console.log('new instance ' + instance);
 
   })();
+  function toTable(parsed_attestation) {
+    let table = '<table style="table-layout: fixed; width: 100%">';
+    table += "<tr><th>Keyloli</th><th>Value</th></tr>";
+
+    for (i = 0; i < parsed_attestation.length; i++) {
+      Object.keys(parsed_attestation[i].pairs)
+        .map(x => {
+           let key = x;
+           let val = parsed_attestation[i].pairs[key];
+           table += `<tr><td>${key}</td><td style="word-wrap: break-word">${val}</td><tr>`;
+        });
+    }
+    table += '</table>';
+    document.body.innerHTML += table;
+
+  }
+
+  function copyMemory(data, instance) {
+    // the `alloc` function returns an offset in
+    // the module's memory to the start of the block
+    var ptr = instance.exports.alloc(data.length);
+    // create a typed `ArrayBuffer` at `ptr` of proper size
+    var mem = new Uint8Array(instance.exports.memory.buffer, ptr, data.length);
+    // copy the content of `data` into the memory buffer
+    mem.set(new Uint8Array(data));
+    // return the pointer
+    return ptr;
+  }
+
+  function parseAttestation(attestation, instance) {
+    let byte_buffer_ptr = copyMemory(attestation, instance);
+
+    let [json_ptr, len] = instance.exports.parse(byte_buffer_ptr, attestation.length);
+    if (len == 0) return;
+
+    try {
+      let json_arr = new Uint8Array(instance.exports.memory.buffer, json_ptr, len);
+      let json_buff = JSON.parse(String.fromCharCode.apply(null, json_arr));
+      return json_buff;
+    } catch (e) {
+      console.log('Error parsing json ' + e);
+    } finally {
+      instance.exports.dealloc(json_ptr, len);
+    }
+  }
+  // a non-sized parsing and deallocation function. If performance is an issue
+  // we can opt for new TextDecoder().decode(slice) assuming we have the length provided
+  // in advance
   function fromCString(ptr) {
     const m = new Uint8Array(
         wasmInstance.exports.memory.buffer, ptr);
@@ -95,7 +138,9 @@
     wasmInstance.exports.dealloc_cstring(ptr);
     return s;
   }
-  attestation = [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x0a, 0xe0,
+
+  attestation = [
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x0a, 0xe0,
   0x00, 0x00, 0x09, 0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0c, 0x22,
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x15, 0x16, 0x00, 0x01, 0x00, 0x03,
   0x00, 0x08, 0x04, 0xde, 0x00, 0x00, 0x0c, 0x22, 0x00, 0x00, 0x00, 0x24,
@@ -330,5 +375,29 @@
   0x0a];
 
 </script>
+<style>
+#my_file {
+    display: none;
+}
+
+#get_file {
+    background: #f9f9f9;
+    border: 5px solid #88c;
+    padding: 15px;
+    border-radius: 5px;
+    margin: 10px;
+    cursor: pointer;
+}
+</style>
+<body>
 
 
+  <input type="button" id="get_file" value="Grab file" onclick="document.getElementById('my_file').click()">
+  <input type="file" id="my_file">
+
+<script>
+  console.log('inscript');
+  console.log(document.getElementById("get_file"));
+</script>
+</body>
+</html>
