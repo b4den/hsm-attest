@@ -1,11 +1,8 @@
 var attestation;
 
-(()=> {
-  console.log('inscript');
-  console.log(document.getElementById("get_file"));
-})();
 
 var Singleton = (async () => {
+    let decompressed_attestation;
     const { instance } = await WebAssembly.instantiateStreaming(
       fetch("./hsmattest.wasm"),
       {
@@ -19,19 +16,9 @@ var Singleton = (async () => {
     console.log('IIFE up and running!');
     let fileListener = document.getElementById("my_file");
     fileListener.addEventListener("change", (ev) => {
-      console.log("in ev!" +ev);
-      console.dir(ev.target.files);
-      let promise = new Promise(handleFile(ev.target.files[0]));
-
-      promise.then(data => {
-        console.log('got file data :) ' + data);
-        clearTable();
-
-        let parsed_data = parse(data);
-        toTable(parsed_data);
-      });
-
-
+      handleUserFiles(ev.target.files)
+      .then(({ name, lastModified, size }) => {
+        console.log(`self decompressed ${name} (${lastModified}, ${size})` + decompressed_attestation); });
     });
 
   function handleFile(fileData) {
@@ -49,12 +36,15 @@ var Singleton = (async () => {
 
 
   function clearTable() {
-    document.getElementById("attestation_table").remove();
+    for (const element of document.getElementsByClassName("attestation_table")) {
+      element.remove();
+    }
+    //document.getElementById("attestation_table").remove();
 
   }
 
   function toTable(parsed_attestation) {
-    let table = '<table id="attestation_table" style="table-layout: fixed; width: 100%">';
+    let table = '<table id="attestation_table" class="attestation_table" style="table-layout: fixed; width: 100%">';
     table += "<tr><th>Keyloli</th><th>Value</th></tr>";
 
     for (i = 0; i < parsed_attestation.length; i++) {
@@ -65,10 +55,13 @@ var Singleton = (async () => {
            table += `<tr><td>${key}</td><td style="word-wrap: break-word">${val}</td><tr>`;
         });
     }
+
     table += '</table>';
     document.body.insertAdjacentHTML('beforeend', table);
     //document.body.innerHTML += table;
+  }
 
+  function toTableSplit(parsed_attestation) {
   }
 
   function copyMemory(data, instance) {
@@ -119,6 +112,39 @@ var Singleton = (async () => {
 
   function getInstance() {
     return instance;
+  }
+
+  async function handleUserFiles(files) {
+      let { name, lastModified, size } = files[0];
+      let promise = new Promise(handleFile(files[0]));
+
+      return promise.then(data => {
+        return data;
+      }).then(async data => {
+        // check if its a compressed version, and if so, decompress it.
+        try {
+          const ds = new DecompressionStream("gzip");
+          const decomp = new Blob([data]).stream().pipeThrough(ds);
+          let resp = await new Response(decomp).arrayBuffer();
+          console.dir(resp);
+          return new Uint8Array(resp);
+          //await new Response(decomp).blob();
+        } catch (e) {
+          return data;
+        }
+
+      }).then(data => {
+
+        decompressed_attestation = [...data];
+        //console.log(Array.apply([], data).join(","));
+
+        // check if the file is compressed
+        clearTable();
+
+        let parsed_data = parse(data);
+        toTable(parsed_data);
+        return { name, lastModified, size };
+      });
   }
 
   return {
