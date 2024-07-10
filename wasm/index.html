@@ -1,4 +1,11 @@
 <html>
+  <head>
+    <link
+        rel="stylesheet"
+        href="https://unpkg.com/franken-ui-releases@0.0.13/dist/default.min.css"
+    />
+  </head>
+  <script src="https://cdn.jsdelivr.net/npm/uikit@3.21.5/dist/js/uikit.min.js"></script>
   <script src="./scriptmod.js"></script>
 <script>
   (async () => {
@@ -19,18 +26,40 @@
 }
 
 #get_file {
-    background: #f9f9f9;
-    border: 5px solid #88c;
-    padding: 15px;
-    border-radius: 5px;
-    margin: 10px;
+    //background: #f9f9f9;
+    //border: 5px solid #88c;
+    //padding: 15px;
+    //border-radius: 5px;
+    //margin: 10px;
     cursor: pointer;
 }
 </style>
 <body>
 
 
-  <input type="button" id="get_file" value="Grab file" onclick="document.getElementById('my_file').click()">
-  <input type="file" id="my_file">
+  <div id="main" class="uk-section">
+    <div id="main_container" class="uk-container">
+      <h1 class="uk-heading-divider">Offline HSM Attestation</h1>
+
+
+      <div class="js-upload uk-section-small">
+        <input type="button" class="uk-button uk-button-default" id="get_file" value="Load file" onclick="document.getElementById('my_file').click()">
+        <input type="file" id="my_file">
+      </div>
+      <ul id="stepper" class="uk-stepper uk-stepper-default uk-stepper-counter">
+        <li>
+          <a href="#"><div uk-tooltip="Select uncompressed or compressed attestation file">Load Attestation</div></a>
+        </li>
+        <li class="uk-active">
+          <a href="#">Load Certificates</a>
+        </li>
+        <li>
+          <a href="#">Verify Bundle</a>
+        </li>
+      </ul>
+    </div>
+
+
+  </div>
 </body>
 </html>

@@ -19,7 +19,15 @@ var Singleton = (async () => {
       handleUserFiles(ev.target.files)
       .then(({ name, lastModified, size }) => {
         console.log(`self decompressed ${name} (${lastModified}, ${size})` + decompressed_attestation); });
+        handleStepper();
     });
+
+  function handleStepper() {
+    for (const element of document.getElementById("stepper").children) {
+      element.classList.remove("uk-stepper-checked");
+    }
+    document.getElementById("stepper").children[0].classList.add("uk-stepper-checked");
+  }
 
   function handleFile(fileData) {
     return function(resolve) {
@@ -36,16 +44,20 @@ var Singleton = (async () => {
 
 
   function clearTable() {
-    for (const element of document.getElementsByClassName("attestation_table")) {
-      element.remove();
-    }
+    document.getElementsByClassName("attestation_table")[0].remove();
+    //for (const element of document.getElementsByClassName("attestation_table")) {
+    //  try {
+    //    element.remove();
+    //  //element.parentELement.remove();
+    //  } catch (e) {}
+    //}
     //document.getElementById("attestation_table").remove();
 
   }
 
   function toTable(parsed_attestation) {
-    let table = '<table id="attestation_table" class="attestation_table" style="table-layout: fixed; width: 100%">';
-    table += "<tr><th>Keyloli</th><th>Value</th></tr>";
+    let table = '<div id="table_container" class="attestation_table uk-section-small uk-overflow-auto"><table id="attestation_table" class="uk-table uk-table-striped" style="table-layout: fixed; width: 100%">';
+    table += "<tr><th>Attribute Name</th><th>Value</th></tr>";
 
     for (i = 0; i < parsed_attestation.length; i++) {
       Object.keys(parsed_attestation[i].pairs)
@@ -56,8 +68,9 @@ var Singleton = (async () => {
         });
     }
 
-    table += '</table>';
-    document.body.insertAdjacentHTML('beforeend', table);
+    table += '</table></div>';
+    //document.body.insertAdjacentHTML('beforeend', table);
+    document.getElementById("main_container").insertAdjacentHTML('beforeend', table);
     //document.body.innerHTML += table;
   }
 
@@ -155,7 +168,6 @@ var Singleton = (async () => {
 
 
 })();
-
 
 attestation = [
 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x0a, 0xe0,
