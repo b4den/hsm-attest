@@ -5,7 +5,6 @@ var attestation;
   console.log(document.getElementById("get_file"));
 })();
 
-
 var Singleton = (async () => {
     const { instance } = await WebAssembly.instantiateStreaming(
       fetch("./hsmattest.wasm"),
@@ -18,9 +17,44 @@ var Singleton = (async () => {
       }
     );
     console.log('IIFE up and running!');
+    let fileListener = document.getElementById("my_file");
+    fileListener.addEventListener("change", (ev) => {
+      console.log("in ev!" +ev);
+      console.dir(ev.target.files);
+      let promise = new Promise(handleFile(ev.target.files[0]));
+
+      promise.then(data => {
+        console.log('got file data :) ' + data);
+        clearTable();
+
+        let parsed_data = parse(data);
+        toTable(parsed_data);
+      });
+
+
+    });
+
+  function handleFile(fileData) {
+    return function(resolve) {
+      var reader = new FileReader();
+      reader.readAsArrayBuffer(fileData);
+      reader.onload = function() {
+        var arrayBuffer = reader.result
+        var bytes = new Uint8Array(arrayBuffer);
+
+        resolve(bytes);
+      }
+    }
+  }
+
+
+  function clearTable() {
+    document.getElementById("attestation_table").remove();
+
+  }
 
   function toTable(parsed_attestation) {
-    let table = '<table style="table-layout: fixed; width: 100%">';
+    let table = '<table id="attestation_table" style="table-layout: fixed; width: 100%">';
     table += "<tr><th>Keyloli</th><th>Value</th></tr>";
 
     for (i = 0; i < parsed_attestation.length; i++) {
@@ -32,7 +66,8 @@ var Singleton = (async () => {
         });
     }
     table += '</table>';
-    document.body.innerHTML += table;
+    document.body.insertAdjacentHTML('beforeend', table);
+    //document.body.innerHTML += table;
 
   }
 
@@ -94,6 +129,7 @@ var Singleton = (async () => {
 
 
 })();
+
 
 attestation = [
 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x0a, 0xe0,
