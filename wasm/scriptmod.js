@@ -41,7 +41,8 @@ var Singleton = (async () => {
 
 
   function clearTable() {
-    document.getElementsByClassName("attestation_table")[0].remove();
+    let table = document.getElementsByClassName("attestation_table");
+    if (table && table.length > 0) table.remove();
     //for (const element of document.getElementsByClassName("attestation_table")) {
     //  try {
     //    element.remove();
