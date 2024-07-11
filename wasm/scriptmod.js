@@ -41,20 +41,14 @@ var Singleton = (async () => {
 
 
   function clearTable() {
-    let table = document.getElementsByClassName("attestation_table");
-    if (table && table.length > 0) table.remove();
-    //for (const element of document.getElementsByClassName("attestation_table")) {
-    //  try {
-    //    element.remove();
-    //  //element.parentELement.remove();
-    //  } catch (e) {}
-    //}
-    //document.getElementById("attestation_table").remove();
-
+    let table = document.getElementById("table_container");
+    while (table.firstChild) {
+      table.firstChild.remove();
+    }
   }
 
   function toTable(parsed_attestation) {
-    let table = '<div id="table_container" class="attestation_table uk-section-small uk-overflow-auto"><table id="attestation_table" class="uk-table uk-table-striped" style="table-layout: fixed; width: 100%">';
+    let table = '<table class="uk-table uk-table-striped attr_table" style="table-layout: fixed; width: 100%">';
     table += "<tr><th>Attribute Name</th><th>Value</th></tr>";
 
     for (i = 0; i < parsed_attestation.length; i++) {
@@ -66,10 +60,10 @@ var Singleton = (async () => {
         });
     }
 
-    table += '</table></div>';
-    //document.body.insertAdjacentHTML('beforeend', table);
-    document.getElementById("main_container").insertAdjacentHTML('beforeend', table);
-    //document.body.innerHTML += table;
+    table += '</table>';
+
+    let fragment = document.createRange().createContextualFragment(table);
+    document.getElementById("table_container").appendChild(fragment);
   }
 
   function toTableSplit(parsed_attestation) {
