@@ -47,7 +47,6 @@ macro_rules! tlv_mapping {
             }
         }
 
-
         paste! {
             impl std::fmt::Display for $name {
                 fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
@@ -59,15 +58,15 @@ macro_rules! tlv_mapping {
                     }
                 }
             }
-        }
 
-        impl std::fmt::Debug for $name {
-            fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
-                match *self {
-                    $( Self::$attr_name => {
-                        write!(f, "{} (ID: {})", stringify!( [< $attr_name:camel >]), $id)
-                    }),*,
-                    Self::UNKNOWN => write!(f, "{} ", "Unknown"),
+            impl std::fmt::Debug for $name {
+                fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
+                    match *self {
+                        $( Self::$attr_name => {
+                            write!(f, "{} (ID: {})", stringify!( [< $attr_name:camel >]), $id)
+                        }),*,
+                        Self::UNKNOWN => write!(f, "{} ", "Unknown"),
+                    }
                 }
             }
         }

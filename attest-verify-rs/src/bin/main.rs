@@ -34,9 +34,6 @@ fn run_parse() -> Result<(), error::ParseError> {
         }
         reader.consume(length);
     };
-    //if let Some(writer) = machine.to_json_bytes() {
-    //    println!("{}", String::from_utf8(writer).unwrap());
-    //}
 
     Ok(())
 }
