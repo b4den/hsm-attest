@@ -45,13 +45,6 @@ var Singleton = (async () => {
 
   function clearTable() {
     document.getElementsByClassName("attestation_table")[0].remove();
-    //for (const element of document.getElementsByClassName("attestation_table")) {
-    //  try {
-    //    element.remove();
-    //  //element.parentELement.remove();
-    //  } catch (e) {}
-    //}
-    //document.getElementById("attestation_table").remove();
 
   }
 
