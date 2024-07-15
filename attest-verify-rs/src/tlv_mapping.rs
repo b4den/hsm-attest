@@ -18,7 +18,7 @@ tlv_mapping! {
         // The key can be trusted for the application that it was created.
         0x0086 => OBJ_ATTR_TRUSTED = Bool,
         // Subclass type of the key.
-        0x0100 => OBJ_ATTR_KEY_TYPE = Bytes,
+        0x0100 => OBJ_ATTR_KEY_TYPE = KeyType,
         // Key identifier.
         0x0102 => OBJ_ATTR_ID = HexStr128,
         // Always true for keys generated on HSM.
@@ -122,6 +122,66 @@ impl EncodeTLV for ClassKey {
             ClassKey::Pubkey => "public-key",
             ClassKey::Privkey => "private-key",
             ClassKey::Secret => "secret-key (symmetric)",
+        }
+        .to_string()
+    }
+}
+
+#[derive(Debug)]
+#[repr(u8)]
+pub enum KeyType {
+    Rsa = 0x00,
+    Dsa = 0x01,
+    // ECDSA or EC key
+    Ec = 0x03,
+    Kyber = 0x30,
+    Dilithium = 0x31,
+    Falcon = 0x32,
+    Generic = 0x10,
+    Rc4 = 0x12,
+    Des = 0x13,
+    Des3 = 0x15,
+    Aes = 0x1f,
+    Any = 0xff,
+}
+
+impl EncodeTLV for KeyType {
+    fn encode(bytes: &[u8], _len: u32) -> Option<Self>
+    where
+        Self: Sized,
+    {
+        use KeyType::*;
+        match bytes.first() {
+            Some(0x00) => Some(Rsa),
+            Some(0x01) => Some(Dsa),
+            Some(0x03) => Some(Ec),
+            Some(0x30) => Some(Kyber),
+            Some(0x31) => Some(Dilithium),
+            Some(0x32) => Some(Falcon),
+            Some(0x10) => Some(Generic),
+            Some(0x12) => Some(Rc4),
+            Some(0x13) => Some(Des),
+            Some(0x15) => Some(Des3),
+            Some(0x1f) => Some(Aes),
+            Some(0xff) => Some(Any),
+            _ => None,
+        }
+    }
+
+    fn to_str(&self) -> String {
+        match self {
+            KeyType::Rsa       => "rsa",
+            KeyType::Dsa       => "dsa",
+            KeyType::Ec        => "ec",
+            KeyType::Kyber     => "kyber",
+            KeyType::Dilithium => "dilithium",
+            KeyType::Falcon    => "falcon",
+            KeyType::Generic   => "generic-secret",
+            KeyType::Rc4       => "rc4",
+            KeyType::Des       => "des",
+            KeyType::Des3      => "des3",
+            KeyType::Aes       => "aes",
+            KeyType::Any       => "any",
         }
         .to_string()
     }
@@ -238,6 +298,7 @@ impl EncodeTLV for Int {
 pub enum TLVValue {
     Bool(Bool),
     ClassKey(ClassKey),
+    KeyType(KeyType),
     HexStr128(HexStr128),
     Bytes(Bytes),
     RawBytes(RawBytes),
@@ -248,13 +309,14 @@ pub enum TLVValue {
 impl TLVValue {
     pub fn to_str(&self) -> String {
         match self {
-            TLVValue::Bool(ref b) => b.to_str(),
+            TLVValue::Bool(b) => b.to_str(),
             TLVValue::ClassKey(b) => b.to_str(),
             TLVValue::HexStr128(b) => b.to_str(),
             TLVValue::Bytes(b) => b.to_str(),
             TLVValue::RawBytes(b) => b.to_str(),
             TLVValue::ByteStr(b) => b.to_str(),
             TLVValue::Int(b) => b.to_str(),
+            TLVValue::KeyType(b) => b.to_str(),
         }
     }
 }
